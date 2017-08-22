@@ -3,6 +3,7 @@ package ipapk
 import (
 	"archive/zip"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -89,5 +90,57 @@ func TestParseApkIconAndLabel(t *testing.T) {
 	}
 	if label != "HelloWorld" {
 		t.Errorf("got %v want %v", label, "HelloWorld")
+	}
+}
+
+func getIosPlist() (*zip.File, error) {
+	reader, err := getAppZipReader("testdata/helloworld.ipa")
+	if err != nil {
+		return nil, err
+	}
+	var plistFile *zip.File
+	for _, f := range reader.File {
+		if reInfoPlist.MatchString(f.Name) {
+			plistFile = f
+			break
+		}
+	}
+	return plistFile, nil
+}
+
+func TestParseIpaFile(t *testing.T) {
+	plistFile, err := getIosPlist()
+	if err != nil {
+		t.Errorf("got %v want no error", err)
+	}
+	ipa, err := parseIpaFile(plistFile)
+	if err != nil {
+		t.Errorf("got %v want no error", err)
+	}
+	if ipa.BundleId != "com.kthcorp.helloworld" {
+		t.Errorf("got %v want %v", ipa.BundleId, "com.kthcorp.helloworld")
+	}
+	if ipa.Version != "1.0" {
+		t.Errorf("got %v want %v", ipa.Version, "1.0")
+	}
+	if ipa.Build != "1.0" {
+		t.Errorf("got %v want %v", ipa.Build, "1.0")
+	}
+}
+
+func TestParseIpaIcon(t *testing.T) {
+	reader, err := getAppZipReader("testdata/helloworld.ipa")
+	if err != nil {
+		t.Errorf("got %v want no error", err)
+	}
+	var iconFile *zip.File
+	for _, f := range reader.File {
+		if strings.Contains(f.Name, "AppIcon60x60") {
+			iconFile = f
+			break
+		}
+	}
+	if _, err := parseIpaIcon(iconFile); err.Error() != "Icon is not found" {
+		t.Errorf("got %v want %v", err, "Icon is not found")
 	}
 }
