@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"encoding/xml"
 	"errors"
+	"image"
 	"image/png"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -18,19 +20,17 @@ import (
 
 var reInfoPlist = regexp.MustCompile(`Payload/[^/]+/Info\.plist`)
 
-type PlatformType int
-
 const (
-	PlatformTypeAndroid PlatformType = 1 + iota
-	PlatformTypeIOS
+	iosExt     = ".ipa"
+	androidExt = ".apk"
 )
 
-type AppInfo struct {
+type appInfo struct {
 	Name     string
 	BundleId string
 	Version  string
 	Build    string
-	Icon     []byte
+	Icon     image.Image
 }
 
 type androidManifest struct {
@@ -46,7 +46,7 @@ type iosPlist struct {
 	CFBundleIdentifier   string `plist:"CFBundleIdentifier"`
 }
 
-func NewAppParser(name string, platformType PlatformType) (*AppInfo, error) {
+func NewAppParser(name string) (*appInfo, error) {
 	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -75,19 +75,21 @@ func NewAppParser(name string, platformType PlatformType) (*AppInfo, error) {
 		}
 	}
 
-	if platformType == PlatformTypeAndroid {
-		appInfo, err := parseApkFile(xmlFile)
+	ext := filepath.Ext(stat.Name())
+
+	if ext == androidExt {
+		info, err := parseApkFile(xmlFile)
 		icon, label, err := parseApkIconAndLabel(name)
-		appInfo.Name = label
-		appInfo.Icon = icon
-		return appInfo, err
+		info.Name = label
+		info.Icon = icon
+		return info, err
 	}
 
-	if platformType == PlatformTypeIOS {
-		appInfo, err := parseIpaFile(plistFile)
+	if ext == iosExt {
+		info, err := parseIpaFile(plistFile)
 		icon, err := parseIpaIcon(iosIconFile)
-		appInfo.Icon = icon
-		return appInfo, err
+		info.Icon = icon
+		return info, err
 	}
 
 	return nil, errors.New("unknown platform")
@@ -118,7 +120,7 @@ func parseAndroidManifest(xmlFile *zip.File) (*androidManifest, error) {
 	return manifest, nil
 }
 
-func parseApkFile(xmlFile *zip.File) (*AppInfo, error) {
+func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 	if xmlFile == nil {
 		return nil, errors.New("AndroidManifest.xml is not found")
 	}
@@ -128,15 +130,15 @@ func parseApkFile(xmlFile *zip.File) (*AppInfo, error) {
 		return nil, err
 	}
 
-	appInfo := new(AppInfo)
-	appInfo.BundleId = manifest.Package
-	appInfo.Version = manifest.VersionName
-	appInfo.Build = manifest.VersionCode
+	info := new(appInfo)
+	info.BundleId = manifest.Package
+	info.Version = manifest.VersionName
+	info.Build = manifest.VersionCode
 
-	return appInfo, nil
+	return info, nil
 }
 
-func parseApkIconAndLabel(name string) ([]byte, string, error) {
+func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	pkg, err := apk.OpenFile(name)
 	if err != nil {
 		return nil, "", err
@@ -152,15 +154,10 @@ func parseApkIconAndLabel(name string) ([]byte, string, error) {
 
 	label, _ := pkg.Label(nil)
 
-	buf := new(bytes.Buffer)
-	if err := png.Encode(buf, icon); err != nil {
-		return nil, "", err
-	}
-
-	return buf.Bytes(), label, nil
+	return icon, label, nil
 }
 
-func parseIpaFile(plistFile *zip.File) (*AppInfo, error) {
+func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 	if plistFile == nil {
 		return nil, errors.New("info.plist is not found")
 	}
@@ -176,22 +173,22 @@ func parseIpaFile(plistFile *zip.File) (*AppInfo, error) {
 		return nil, err
 	}
 
-	info := new(iosPlist)
+	p := new(iosPlist)
 	decoder := plist.NewDecoder(bytes.NewReader(buf))
-	if err := decoder.Decode(info); err != nil {
+	if err := decoder.Decode(p); err != nil {
 		return nil, err
 	}
 
-	appInfo := new(AppInfo)
-	appInfo.Name = info.CFBundleDisplayName
-	appInfo.BundleId = info.CFBundleIdentifier
-	appInfo.Version = info.CFBundleShortVersion
-	appInfo.Build = info.CFBundleVersion
+	info := new(appInfo)
+	info.Name = p.CFBundleDisplayName
+	info.BundleId = p.CFBundleIdentifier
+	info.Version = p.CFBundleShortVersion
+	info.Build = p.CFBundleVersion
 
-	return appInfo, nil
+	return info, nil
 }
 
-func parseIpaIcon(iconFile *zip.File) ([]byte, error) {
+func parseIpaIcon(iconFile *zip.File) (image.Image, error) {
 	if iconFile == nil {
 		return nil, errors.New("Icon is not found")
 	}
@@ -202,5 +199,12 @@ func parseIpaIcon(iconFile *zip.File) ([]byte, error) {
 	}
 	defer rc.Close()
 
-	return ioutil.ReadAll(rc)
+	data, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	icon, err := png.Decode(bytes.NewReader(data))
+
+	return icon, nil
 }

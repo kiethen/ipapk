@@ -2,6 +2,8 @@ package ipapk
 
 import (
 	"archive/zip"
+	"bytes"
+	"image/png"
 	"os"
 	"strings"
 	"testing"
@@ -85,8 +87,12 @@ func TestParseApkIconAndLabel(t *testing.T) {
 	if err != nil {
 		t.Errorf("got %v want no error", err)
 	}
-	if len(icon) != 10223 {
-		t.Errorf("got %v want %v", len(icon), 10223)
+	buf := new(bytes.Buffer)
+	if err := png.Encode(buf, icon); err != nil {
+		t.Errorf("got %v want no error", err)
+	}
+	if len(buf.Bytes()) != 10223 {
+		t.Errorf("got %v want %v", len(buf.Bytes()), 10223)
 	}
 	if label != "HelloWorld" {
 		t.Errorf("got %v want %v", label, "HelloWorld")
