@@ -85,8 +85,8 @@ func TestParseApkIconAndLabel(t *testing.T) {
 	if err != nil {
 		t.Errorf("got %v want no error", err)
 	}
-	if len(icon) != 2035 {
-		t.Errorf("got %v want %v", len(icon), 2035)
+	if len(icon) != 10223 {
+		t.Errorf("got %v want %v", len(icon), 10223)
 	}
 	if label != "HelloWorld" {
 		t.Errorf("got %v want %v", label, "HelloWorld")
