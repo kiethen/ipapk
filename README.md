@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	apk, _ := ipapk.NewAppParser("test.apk", ipapk.PlatformTypeAndroid)
+	apk, _ := ipapk.NewAppParser("test.apk")
 	fmt.Println(apk)
 }
 ```
