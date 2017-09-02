@@ -31,6 +31,7 @@ type appInfo struct {
 	Version  string
 	Build    string
 	Icon     image.Image
+	Size     int64
 }
 
 type androidManifest struct {
@@ -82,6 +83,7 @@ func NewAppParser(name string) (*appInfo, error) {
 		icon, label, err := parseApkIconAndLabel(name)
 		info.Name = label
 		info.Icon = icon
+		info.Size = stat.Size()
 		return info, err
 	}
 
@@ -89,6 +91,7 @@ func NewAppParser(name string) (*appInfo, error) {
 		info, err := parseIpaFile(plistFile)
 		icon, err := parseIpaIcon(iosIconFile)
 		info.Icon = icon
+		info.Size = stat.Size()
 		return info, err
 	}
 
