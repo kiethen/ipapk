@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/DHowett/go-plist"
+	"github.com/andrianbdn/iospng"
 	"github.com/shogo82148/androidbinary"
 	"github.com/shogo82148/androidbinary/apk"
 )
@@ -41,6 +42,7 @@ type androidManifest struct {
 }
 
 type iosPlist struct {
+	CFBundleName         string `plist:"CFBundleName"`
 	CFBundleDisplayName  string `plist:"CFBundleDisplayName"`
 	CFBundleVersion      string `plist:"CFBundleVersion"`
 	CFBundleShortVersion string `plist:"CFBundleShortVersionString"`
@@ -183,7 +185,11 @@ func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 	}
 
 	info := new(appInfo)
-	info.Name = p.CFBundleDisplayName
+	if p.CFBundleDisplayName == "" {
+		info.Name = p.CFBundleName
+	} else {
+		info.Name = p.CFBundleDisplayName
+	}
 	info.BundleId = p.CFBundleIdentifier
 	info.Version = p.CFBundleShortVersion
 	info.Build = p.CFBundleVersion
@@ -202,15 +208,8 @@ func parseIpaIcon(iconFile *zip.File) (image.Image, error) {
 	}
 	defer rc.Close()
 
-	data, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return nil, err
-	}
+	var w bytes.Buffer
+	iospng.PngRevertOptimization(rc, &w)
 
-	icon, err := png.Decode(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-
-	return icon, nil
+	return png.Decode(bytes.NewReader(w.Bytes()))
 }
