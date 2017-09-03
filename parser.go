@@ -208,6 +208,9 @@ func parseIpaIcon(iconFile *zip.File) (image.Image, error) {
 	}
 
 	icon, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
 
 	return icon, nil
 }
