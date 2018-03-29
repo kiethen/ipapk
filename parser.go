@@ -3,8 +3,10 @@ package ipapk
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"io/ioutil"
@@ -27,18 +29,51 @@ const (
 )
 
 type appInfo struct {
-	Name     string
-	BundleId string
-	Version  string
-	Build    string
-	Icon     image.Image
-	Size     int64
+	Name             string
+	PackageName      string
+	Version          string
+	Build            string
+	Base64           string
+	VersionName      string
+	VersionCode      string
+	SDKMinVersion    int
+	SDKTargetVersion int
+	UsesPermissions  []string
+	Activities       []string
+	LanchActivity    string
+	Icon             image.Image
+	Size             int64
 }
 
+type usesPermissions struct {
+	Name string `xml:"name,attr"`
+}
+type sdkVersion struct {
+	Min    int `xml:"minSdkVersion,attr"`
+	Target int `xml:"targetSdkVersion,attr"`
+}
+type activity struct {
+	Name     string   `xml:"name,attr"`
+	Exported bool     `xml:"exported,attr"`
+	Filter   []filter `xml:"intent-filter"`
+}
+type action struct {
+	Name string `xml:"name,attr"`
+}
+type category struct {
+	Name string `xml:"name,attr"`
+}
+type filter struct {
+	Action   action   `xml:"action"`
+	Category category `xml:"category"`
+}
 type androidManifest struct {
-	Package     string `xml:"package,attr"`
-	VersionName string `xml:"versionName,attr"`
-	VersionCode string `xml:"versionCode,attr"`
+	Package         string            `xml:"package,attr"`
+	VersionName     string            `xml:"versionName,attr"`
+	VersionCode     string            `xml:"versionCode,attr"`
+	SDKVersion      sdkVersion        `xml:"uses-sdk"`
+	UsesPermissions []usesPermissions `xml:"uses-permission"`
+	Activities      []activity        `xml:"application>activity"`
 }
 
 type iosPlist struct {
@@ -47,6 +82,7 @@ type iosPlist struct {
 	CFBundleVersion      string `plist:"CFBundleVersion"`
 	CFBundleShortVersion string `plist:"CFBundleShortVersionString"`
 	CFBundleIdentifier   string `plist:"CFBundleIdentifier"`
+	CFBundleExecutable   string `plist:"CFBundleExecutable"`
 }
 
 func NewAppParser(name string) (*appInfo, error) {
@@ -84,16 +120,28 @@ func NewAppParser(name string) (*appInfo, error) {
 		info, err := parseApkFile(xmlFile)
 		icon, label, err := parseApkIconAndLabel(name)
 		info.Name = label
-		info.Icon = icon
+		// info.Icon = icon
 		info.Size = stat.Size()
+
+		var buff bytes.Buffer
+		png.Encode(&buff, icon)
+		info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
 		return info, err
 	}
 
-	if ext == iosExt {
+	if ext == iosExt || ext == ".zip" {
 		info, err := parseIpaFile(plistFile)
 		icon, err := parseIpaIcon(iosIconFile)
-		info.Icon = icon
+		if err != nil {
+			fmt.Println("Error in getting iOS app icon ", err)
+		} else {
+			info.Icon = icon
+			var buff bytes.Buffer
+			png.Encode(&buff, icon)
+			info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
+		}
 		info.Size = stat.Size()
+
 		return info, err
 	}
 
@@ -134,12 +182,27 @@ func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	// fmt.Printf("Activities %+v\n", manifest.Activities)
+	// fmt.Println("UsesPermissions %+v\n", manifest.UsesPermissions)
 	info := new(appInfo)
-	info.BundleId = manifest.Package
+	info.PackageName = manifest.Package
 	info.Version = manifest.VersionName
 	info.Build = manifest.VersionCode
+	info.SDKMinVersion = manifest.SDKVersion.Min
+	info.SDKTargetVersion = manifest.SDKVersion.Target
+	info.VersionCode = manifest.VersionCode
+	info.VersionName = manifest.VersionName
 
+	// LanchActivity
+	for _, activity := range manifest.Activities {
+		for _, filter := range activity.Filter {
+			if filter.Action.Name == "android.intent.action.MAIN" && filter.Category.Name == "android.intent.category.LAUNCHER" {
+				info.LanchActivity = activity.Name
+				break
+			}
+
+		}
+	}
 	return info, nil
 }
 
@@ -190,9 +253,11 @@ func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 	} else {
 		info.Name = p.CFBundleDisplayName
 	}
-	info.BundleId = p.CFBundleIdentifier
+	info.PackageName = p.CFBundleIdentifier
 	info.Version = p.CFBundleShortVersion
-	info.Build = p.CFBundleVersion
+	info.VersionCode = p.CFBundleVersion
+	info.VersionName = p.CFBundleShortVersion
+	info.LanchActivity = p.CFBundleExecutable
 
 	return info, nil
 }
