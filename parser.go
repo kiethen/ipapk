@@ -26,7 +26,7 @@ const (
 	androidExt = ".apk"
 )
 
-type appInfo struct {
+type AppInfo struct {
 	Name     string
 	BundleId string
 	Version  string
@@ -49,7 +49,7 @@ type iosPlist struct {
 	CFBundleIdentifier   string `plist:"CFBundleIdentifier"`
 }
 
-func NewAppParser(name string) (*appInfo, error) {
+func NewAppParser(name string) (*AppInfo, error) {
 	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func parseAndroidManifest(xmlFile *zip.File) (*androidManifest, error) {
 	return manifest, nil
 }
 
-func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
+func parseApkFile(xmlFile *zip.File) (*AppInfo, error) {
 	if xmlFile == nil {
 		return nil, errors.New("AndroidManifest.xml is not found")
 	}
@@ -135,7 +135,7 @@ func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 		return nil, err
 	}
 
-	info := new(appInfo)
+	info := new(AppInfo)
 	info.BundleId = manifest.Package
 	info.Version = manifest.VersionName
 	info.Build = manifest.VersionCode
@@ -162,7 +162,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	return icon, label, nil
 }
 
-func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
+func parseIpaFile(plistFile *zip.File) (*AppInfo, error) {
 	if plistFile == nil {
 		return nil, errors.New("info.plist is not found")
 	}
@@ -184,7 +184,7 @@ func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 		return nil, err
 	}
 
-	info := new(appInfo)
+	info := new(AppInfo)
 	if p.CFBundleDisplayName == "" {
 		info.Name = p.CFBundleName
 	} else {
