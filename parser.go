@@ -19,7 +19,10 @@ import (
 	"github.com/shogo82148/androidbinary/apk"
 )
 
-var reInfoPlist = regexp.MustCompile(`Payload/[^/]+/Info\.plist`)
+var (
+	reInfoPlist = regexp.MustCompile(`Payload/[^/]+/Info\.plist`)
+	ErrNoIcon   = errors.New("icon not found")
+)
 
 const (
 	iosExt     = ".ipa"
@@ -127,7 +130,7 @@ func parseAndroidManifest(xmlFile *zip.File) (*androidManifest, error) {
 
 func parseApkFile(xmlFile *zip.File) (*AppInfo, error) {
 	if xmlFile == nil {
-		return nil, errors.New("AndroidManifest.xml is not found")
+		return nil, errors.New("AndroidManifest.xml not found")
 	}
 
 	manifest, err := parseAndroidManifest(xmlFile)
@@ -154,7 +157,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 		Density: 720,
 	})
 	if icon == nil {
-		return nil, "", errors.New("Icon is not found")
+		return nil, "", ErrNoIcon
 	}
 
 	label, _ := pkg.Label(nil)
@@ -164,7 +167,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 
 func parseIpaFile(plistFile *zip.File) (*AppInfo, error) {
 	if plistFile == nil {
-		return nil, errors.New("info.plist is not found")
+		return nil, errors.New("info.plist not found")
 	}
 
 	rc, err := plistFile.Open()
@@ -199,7 +202,7 @@ func parseIpaFile(plistFile *zip.File) (*AppInfo, error) {
 
 func parseIpaIcon(iconFile *zip.File) (image.Image, error) {
 	if iconFile == nil {
-		return nil, errors.New("Icon is not found")
+		return nil, ErrNoIcon
 	}
 
 	rc, err := iconFile.Open()

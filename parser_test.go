@@ -146,7 +146,7 @@ func TestParseIpaIcon(t *testing.T) {
 			break
 		}
 	}
-	if _, err := parseIpaIcon(iconFile); err.Error() != "Icon is not found" {
-		t.Errorf("got %v want %v", err, "Icon is not found")
+	if _, err := parseIpaIcon(iconFile); err != ErrNoIcon {
+		t.Errorf("got %v want %v", err, ErrNoIcon)
 	}
 }
