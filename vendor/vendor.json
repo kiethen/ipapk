@@ -1,0 +1,37 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "oYHVIFpLyGN6pVjljblPR+LS30I=",
+			"path": "github.com/DHowett/go-plist",
+			"revision": "84d08b7bddb35583bb3153b811c6cc52bb306f52",
+			"revisionTime": "2018-02-14T08:12:42Z"
+		},
+		{
+			"checksumSHA1": "GAMb5uqJYjhZygbNxw9N5EIHvmw=",
+			"path": "github.com/andrianbdn/iospng",
+			"revision": "b54a5310f03ea9331e7f156d6764c14ffceee869",
+			"revisionTime": "2017-04-23T15:16:11Z"
+		},
+		{
+			"checksumSHA1": "ljd3FhYRJ91cLZz3wsH9BQQ2JbA=",
+			"path": "github.com/pkg/errors",
+			"revision": "816c9085562cd7ee03e7f8188a1cfd942858cded",
+			"revisionTime": "2018-03-11T21:45:15Z"
+		},
+		{
+			"checksumSHA1": "CkhNiFyfIGR9ctRM4rEexItcblU=",
+			"path": "github.com/shogo82148/androidbinary",
+			"revision": "f2570763f91ec28d97aa329a78bfb2b93eb41822",
+			"revisionTime": "2017-11-25T03:40:40Z"
+		},
+		{
+			"checksumSHA1": "RXqSQ/p78DgPX/UxRF8fjJPcMdg=",
+			"path": "github.com/shogo82148/androidbinary/apk",
+			"revision": "f2570763f91ec28d97aa329a78bfb2b93eb41822",
+			"revisionTime": "2017-11-25T03:40:40Z"
+		}
+	],
+	"rootPath": "github.com/phinexdaz/ipapk"
+}
