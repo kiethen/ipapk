@@ -88,12 +88,14 @@ type iosPlist struct {
 func NewAppParser(name string) (*appInfo, error) {
 	file, err := os.Open(name)
 	if err != nil {
+		fmt.Println(name, " Unable to find file ", err)
 		return nil, err
 	}
 	defer file.Close()
 
 	stat, err := file.Stat()
 	if err != nil {
+		fmt.Println(name, " Unable to find file stat", err)
 		return nil, err
 	}
 
@@ -119,11 +121,16 @@ func NewAppParser(name string) (*appInfo, error) {
 	if ext == androidExt {
 		info, err := parseApkFile(xmlFile)
 		icon, label, err := parseApkIconAndLabel(name)
+		if err != nil {
+			fmt.Println("Unable to get icon information ", err)
+			return nil, err
+		}
 		info.Name = label
 		// info.Icon = icon
 		info.Size = stat.Size()
 
 		var buff bytes.Buffer
+
 		png.Encode(&buff, icon)
 		info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
 		return info, err
