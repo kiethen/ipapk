@@ -109,7 +109,6 @@ func NewAppParser(name string) (*appInfo, error) {
 
 	var xmlFile, plistFile, iosIconFile *zip.File
 	for _, f := range reader.File {
-		fmt.Println(" fiiles ", f.Name)
 		switch {
 		case f.Name == "AndroidManifest.xml":
 			xmlFile = f
@@ -238,7 +237,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	args := []string{"dump", "badging", name}
 	fmt.Println("\n\nargs ", args)
 	pkg, err := apk.OpenFile(name)
-	fmt.Printf("\napk parse info %+v ", pkg)
+	fmt.Printf("\napk parse info %+v ", pkg.Manifest.App)
 	if err != nil {
 		return nil, "", err
 	}
