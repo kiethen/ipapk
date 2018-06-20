@@ -17,8 +17,8 @@ import (
 
 	"github.com/DHowett/go-plist"
 	"github.com/andrianbdn/iospng"
-	"github.com/shogo82148/androidbinary"
-	"github.com/shogo82148/androidbinary/apk"
+	"gitlab.com/omnarayan/androidbinary"
+	"gitlab.com/omnarayan/androidbinary/apk"
 )
 
 var reInfoPlist = regexp.MustCompile(`Payload/[^/]+/Info\.plist`)
@@ -109,7 +109,7 @@ func NewAppParser(name string) (*appInfo, error) {
 
 	var xmlFile, plistFile, iosIconFile *zip.File
 	for _, f := range reader.File {
-		// fmt.Println(" fiiles ", f.Name)
+		fmt.Println(" fiiles ", f.Name)
 		switch {
 		case f.Name == "AndroidManifest.xml":
 			xmlFile = f
@@ -235,6 +235,8 @@ func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 }
 
 func parseApkIconAndLabel(name string) (image.Image, string, error) {
+	args := []string{"dump", "badging", name}
+	fmt.Println("\n\nargs ", args)
 	pkg, err := apk.OpenFile(name)
 	if err != nil {
 		return nil, "", err
