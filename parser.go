@@ -241,7 +241,6 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 		return nil, "", err
 	}
 	defer pkg.Close()
-
 	icon, _ := pkg.Icon(&androidbinary.ResTableConfig{
 		Density: 720,
 	})
