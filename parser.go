@@ -238,6 +238,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	args := []string{"dump", "badging", name}
 	fmt.Println("\n\nargs ", args)
 	pkg, err := apk.OpenFile(name)
+	fmt.Printf("\napk parse info %+v ", pkg)
 	if err != nil {
 		return nil, "", err
 	}
