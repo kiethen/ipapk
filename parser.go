@@ -235,7 +235,6 @@ func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 }
 
 func parseApkIconAndLabel(name string) (image.Image, string, error) {
-
 	pkg, err := apk.OpenFile(name)
 	fmt.Printf("\napk parse info %+v ", pkg.Manifest.App)
 	if err != nil {
