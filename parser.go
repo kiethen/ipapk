@@ -253,7 +253,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	label, _ := pkg.Label(nil)
 	args := []string{"dump", "badging", name}
 	fmt.Println("\n\nargs ", args)
-	resp, _ := exec.Command("aapt", strings.Fields(args)...).Output()
+	resp, _ := exec.Command("aapt", args...).Output()
 	if len(resp) > 0 {
 		data := strings.Split(string(resp), "launchable-activity")
 		if len(data) > 0 {
