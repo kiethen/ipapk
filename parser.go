@@ -43,6 +43,7 @@ type appInfo struct {
 	LanchActivity    string
 	Icon             image.Image
 	Size             int64
+	IconFileName     string
 }
 
 type usesPermissions struct {
@@ -77,12 +78,13 @@ type androidManifest struct {
 }
 
 type iosPlist struct {
-	CFBundleName         string `plist:"CFBundleName"`
-	CFBundleDisplayName  string `plist:"CFBundleDisplayName"`
-	CFBundleVersion      string `plist:"CFBundleVersion"`
-	CFBundleShortVersion string `plist:"CFBundleShortVersionString"`
-	CFBundleIdentifier   string `plist:"CFBundleIdentifier"`
-	CFBundleExecutable   string `plist:"CFBundleExecutable"`
+	CFBundleName         string                            `plist:"CFBundleName"`
+	CFBundleDisplayName  string                            `plist:"CFBundleDisplayName"`
+	CFBundleVersion      string                            `plist:"CFBundleVersion"`
+	CFBundleShortVersion string                            `plist:"CFBundleShortVersionString"`
+	CFBundleIdentifier   string                            `plist:"CFBundleIdentifier"`
+	CFBundleExecutable   string                            `plist:"CFBundleExecutable"`
+	CFBundleIcons        map[string]map[string]interface{} `plist:"CFBundleIcons"`
 }
 
 func NewAppParser(name string) (*appInfo, error) {
@@ -101,15 +103,19 @@ func NewAppParser(name string) (*appInfo, error) {
 
 	reader, err := zip.NewReader(file, stat.Size())
 	if err != nil {
+		fmt.Println(" Unable to parse zip file ", err)
 		return nil, err
 	}
 
 	var xmlFile, plistFile, iosIconFile *zip.File
 	for _, f := range reader.File {
+		// fmt.Println(" fiiles ", f.Name)
 		switch {
 		case f.Name == "AndroidManifest.xml":
 			xmlFile = f
 		case reInfoPlist.MatchString(f.Name):
+			plistFile = f
+		case strings.Contains(f.Name, "Info.plist"):
 			plistFile = f
 		case strings.Contains(f.Name, "AppIcon60x60"):
 			iosIconFile = f
@@ -122,22 +128,37 @@ func NewAppParser(name string) (*appInfo, error) {
 		info, err := parseApkFile(xmlFile)
 		icon, label, err := parseApkIconAndLabel(name)
 		if err != nil {
+			icon = nil
 			fmt.Println("Unable to get icon information ", err)
-			return nil, err
+			err = nil
+
 		}
 		info.Name = label
 		// info.Icon = icon
 		info.Size = stat.Size()
+		if icon != nil {
+			var buff bytes.Buffer
 
-		var buff bytes.Buffer
-
-		png.Encode(&buff, icon)
-		info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
+			png.Encode(&buff, icon)
+			info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
+		}
 		return info, err
 	}
 
 	if ext == iosExt || ext == ".zip" {
 		info, err := parseIpaFile(plistFile)
+
+		if err != nil {
+			fmt.Println("Error in getting iOS app details ", err)
+			return nil, err
+		}
+		for _, f := range reader.File {
+			if strings.Contains(f.Name, info.IconFileName) {
+				iosIconFile = f
+				fmt.Println("We got icon file ", iosIconFile)
+			}
+
+		}
 		icon, err := parseIpaIcon(iosIconFile)
 		if err != nil {
 			fmt.Println("Error in getting iOS app icon ", err)
@@ -146,10 +167,10 @@ func NewAppParser(name string) (*appInfo, error) {
 			var buff bytes.Buffer
 			png.Encode(&buff, icon)
 			info.Base64 = base64.StdEncoding.EncodeToString(buff.Bytes())
+			info.Size = stat.Size()
 		}
-		info.Size = stat.Size()
 
-		return info, err
+		return info, nil
 	}
 
 	return nil, errors.New("unknown platform")
@@ -234,7 +255,7 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 
 func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 	if plistFile == nil {
-		return nil, errors.New("info.plist is not found")
+		return nil, errors.New("not zip file, info.plist is not found")
 	}
 
 	rc, err := plistFile.Open()
@@ -265,6 +286,11 @@ func parseIpaFile(plistFile *zip.File) (*appInfo, error) {
 	info.VersionCode = p.CFBundleVersion
 	info.VersionName = p.CFBundleShortVersion
 	info.LanchActivity = p.CFBundleExecutable
+	if p.CFBundleIcons["CFBundlePrimaryIcon"] != nil {
+		for _, v := range p.CFBundleIcons["CFBundlePrimaryIcon"]["CFBundleIconFiles"].([]interface{}) {
+			info.IconFileName = v.(string)
+		}
+	}
 
 	return info, nil
 }
