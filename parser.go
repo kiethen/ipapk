@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -234,8 +235,7 @@ func parseApkFile(xmlFile *zip.File) (*appInfo, error) {
 }
 
 func parseApkIconAndLabel(name string) (image.Image, string, error) {
-	args := []string{"dump", "badging", name}
-	fmt.Println("\n\nargs ", args)
+
 	pkg, err := apk.OpenFile(name)
 	fmt.Printf("\napk parse info %+v ", pkg.Manifest.App)
 	if err != nil {
@@ -251,6 +251,18 @@ func parseApkIconAndLabel(name string) (image.Image, string, error) {
 	}
 
 	label, _ := pkg.Label(nil)
+	args := []string{"dump", "badging", name}
+	fmt.Println("\n\nargs ", args)
+	resp, _ := exec.Command("aapt", strings.Fields(args)...).Output()
+	if len(resp) > 0 {
+		data := strings.Split(string(resp), "launchable-activity")
+		if len(data) > 0 {
+			temp := strings.Split(data[1], "label='")
+			if len(temp) > 0 {
+				label = strings.Replace(temp[0], "'", "", -1)
+			}
+		}
+	}
 
 	return icon, label, nil
 }
