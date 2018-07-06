@@ -1,32 +1,30 @@
 package iospng
 
 import (
-	"io"
 	"bytes"
-	"encoding/binary"
-	"hash/crc32"
 	"compress/zlib"
-	"io/ioutil"
+	"encoding/binary"
 	"errors"
+	"hash/crc32"
+	"io"
+	"io/ioutil"
 )
 
 var (
-	ErrPngHeader = errors.New("Not a Png");
+	ErrPngHeader = errors.New("Not a Png")
 	ErrImageData = errors.New("Unexpected amount of image data")
 )
 
-
 type pngChunk struct {
 	chunkLength, chunkCRC uint32
-	chunkType, chunkData []byte
+	chunkType, chunkData  []byte
 }
 
 func decodePngData(data []byte) ([]byte, error) {
-
 	var zbuf bytes.Buffer
-	zbuf.Write([]byte{0x78, 0x1}) 	// looks like a good zlib header
+	zbuf.Write([]byte{0x78, 0x1}) // looks like a good zlib header
 	zbuf.Write(data)
-	zbuf.Write([]byte{0,0,0,0}) 	// don't know CRC, will get zlib.ErrChecksum
+	zbuf.Write([]byte{0, 0, 0, 0}) // don't know CRC, will get zlib.ErrChecksum
 
 	reader, err := zlib.NewReader(&zbuf)
 	if err != nil {
@@ -99,17 +97,13 @@ func (p *pngChunk) is(kind string) bool {
 	return string(p.chunkType) == kind
 }
 
-func rawImageFix(w, h int, raw []byte) error {
-	if len(raw) != w*h*4 + h {
-		return ErrImageData
-	}
-
+func unsafeImageFix(w, h int, raw []byte) {
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			// we expect this PNG data
 			// to be 4 bytes per pixel
 			// 1st byte in each row is filter
-			row := y*w*4 + y;
+			row := y*w*4 + y
 			col := x*4 + 1
 
 			b := raw[row+col+0]
@@ -128,7 +122,51 @@ func rawImageFix(w, h int, raw []byte) error {
 
 		}
 	}
-	return nil
+}
+
+type interlacedAdam7 struct {
+	xF, yF, xO, yO int
+}
+
+var adam7factoroffset = []interlacedAdam7{
+	{8, 8, 0, 0},
+	{8, 8, 4, 0},
+	{4, 8, 0, 4},
+	{4, 4, 2, 0},
+	{2, 4, 0, 2},
+	{2, 2, 1, 0},
+	{1, 2, 0, 1},
+}
+
+func rawImageFix(w, h int, interlaced bool, raw []byte) error {
+	if interlaced {
+
+		total := 0
+		for pass := 0; pass < 7; pass++ {
+			p := adam7factoroffset[pass]
+
+			wp := (w - p.xO + p.xF - 1) / p.xF
+			hp := (h - p.yO + p.yF - 1) / p.yF
+			psize := wp*hp*4 + hp
+
+			if total+psize > len(raw) {
+				return ErrImageData
+			}
+
+			unsafeImageFix(wp, hp, raw[total:])
+			total = total + psize
+		}
+
+		return nil
+
+	} else {
+		if len(raw) != w*h*4+h {
+			return ErrImageData
+		}
+
+		unsafeImageFix(w, h, raw)
+		return nil
+	}
 }
 
 // This function actually does everything:
@@ -139,7 +177,7 @@ func rawImageFix(w, h int, raw []byte) error {
 func PngRevertOptimization(reader io.Reader, writer io.Writer) error {
 	header := make([]byte, 8)
 	if _, err := io.ReadFull(reader, header); err != nil {
-		return err
+		return errors.New("Read error" + err.Error())
 	}
 
 	if bytes.Compare([]byte("\x89PNG\r\n\x1a\n"), header) != 0 {
@@ -148,7 +186,8 @@ func PngRevertOptimization(reader io.Reader, writer io.Writer) error {
 
 	writer.Write(header)
 
-	var w, h int;
+	var interlaced bool
+	var w, h int
 	var datbuf bytes.Buffer
 	optimized := false
 
@@ -158,35 +197,31 @@ func PngRevertOptimization(reader io.Reader, writer io.Writer) error {
 			return err
 		}
 
-
 		switch {
 
 		case chunk.is("IHDR"):
 			w = int(binary.BigEndian.Uint32(chunk.chunkData[:4]))
 			h = int(binary.BigEndian.Uint32(chunk.chunkData[4:8]))
-
+			interlaced = chunk.chunkData[12] == 1
 
 		case chunk.is("CgBI"):
 			optimized = true
-			continue;
+			continue
 
 		case chunk.is("IDAT"):
 			if optimized {
 				datbuf.Write(chunk.chunkData)
-				continue;
+				continue
 			}
-
 
 		case chunk.is("IEND"):
 			if optimized {
-
 				raw, err := decodePngData(datbuf.Bytes())
 				if err != nil {
 					return err
 				}
 
-
-				if err = rawImageFix(w, h, raw); err != nil {
+				if err = rawImageFix(w, h, interlaced, raw); err != nil {
 					return err
 				}
 
@@ -204,11 +239,14 @@ func PngRevertOptimization(reader io.Reader, writer io.Writer) error {
 				err = chunk.write(writer, true)
 
 				return nil
+			} else {
+				return chunk.write(writer, false)
 			}
+
 		}
 
 		if err := chunk.write(writer, false); err != nil {
-			return nil
+			return err
 		}
 
 	}
