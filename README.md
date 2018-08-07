@@ -13,6 +13,8 @@ import (
 	"github.com/phinexdaz/ipapk"
 )
 
+// random comment
+
 func main() {
 	apk, _ := ipapk.NewAppParser("test.apk")
 	fmt.Println(apk)
